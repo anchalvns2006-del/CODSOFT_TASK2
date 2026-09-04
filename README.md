@@ -10,7 +10,7 @@ The system uses a **Random Forest Classifier** trained on historical transaction
 
 ## 🚀 Live Demo
 
-🔗 **Coming Soon**
+🔗 **[Try FraudGuard AI Live](https://anchalvns2006-del-codsoft-task2-app-0k8yey.streamlit.app/)**
 
 ---
 
