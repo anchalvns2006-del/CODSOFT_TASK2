@@ -53,10 +53,17 @@ except Exception as e:
 
 
 # ============================================================
-# LOAD DATASET
+# LOAD ANALYTICS DATA
 # ============================================================
 
+SUMMARY_PATH = Path("analytics_summary.json")
+
 df = None
+analytics = None
+
+# ------------------------------------------------------------
+# Try full dataset first (local development)
+# ------------------------------------------------------------
 
 if DATA_PATH.exists():
 
@@ -66,6 +73,157 @@ if DATA_PATH.exists():
     except Exception:
         df = None
 
+
+# ------------------------------------------------------------
+# If full dataset is unavailable, use cloud summary
+# ------------------------------------------------------------
+
+if df is None and SUMMARY_PATH.exists():
+
+    try:
+        import json
+
+        with open(
+            SUMMARY_PATH,
+            "r",
+            encoding="utf-8"
+        ) as file:
+            analytics = json.load(file)
+
+    except Exception:
+        analytics = None
+
+
+# ============================================================
+# FEATURE ENGINEERING
+# ============================================================
+
+if df is not None:
+
+    if "trans_date_trans_time" in df.columns:
+
+        df["trans_date_trans_time"] = pd.to_datetime(
+            df["trans_date_trans_time"],
+            errors="coerce"
+        )
+
+        df["hour"] = (
+            df["trans_date_trans_time"]
+            .dt.hour
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["month"] = (
+            df["trans_date_trans_time"]
+            .dt.month
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["day_of_week"] = (
+            df["trans_date_trans_time"]
+            .dt.dayofweek
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["is_weekend"] = (
+            df["day_of_week"] >= 5
+        ).astype(int)
+
+        df["is_night"] = (
+            (df["hour"] < 6) |
+            (df["hour"] >= 22)
+        ).astype(int)
+
+    if "amt" in df.columns:
+
+        df["amount_range"] = pd.cut(
+            df["amt"],
+            bins=[
+                0,
+                25,
+                50,
+                100,
+                250,
+                500,
+                1000,
+                np.inf
+            ],
+            labels=[
+                "0-25",
+                "25-50",
+                "50-100",
+                "100-250",
+                "250-500",
+                "500-1000",
+                "1000+"
+            ]
+        )
+
+    if all(
+        column in df.columns
+        for column in [
+            "lat",
+            "long",
+            "merch_lat",
+            "merch_long"
+        ]
+    ):
+
+        df["distance_km"] = np.sqrt(
+            (df["lat"] - df["merch_lat"]) ** 2 +
+            (df["long"] - df["merch_long"]) ** 2
+        )
+
+    else:
+
+        df["distance_km"] = 0.0
+
+
+# ============================================================
+# DATA METRICS
+# ============================================================
+
+if analytics is not None:
+
+    metrics = analytics["metrics"]
+
+    total_transactions = metrics["total_transactions"]
+    fraud_count = metrics["fraud_count"]
+    legitimate_count = metrics["legitimate_count"]
+    fraud_rate = metrics["fraud_rate"]
+
+else:
+
+    if (
+        df is not None
+        and "is_fraud" in df.columns
+    ):
+
+        total_transactions = len(df)
+
+        fraud_count = int(
+            df["is_fraud"].sum()
+        )
+
+        legitimate_count = (
+            total_transactions - fraud_count
+        )
+
+        fraud_rate = (
+            fraud_count / total_transactions * 100
+            if total_transactions > 0
+            else 0
+        )
+
+    else:
+
+        total_transactions = 0
+        fraud_count = 0
+        legitimate_count = 0
+        fraud_rate = 0
 
 # ============================================================
 # FEATURE ENGINEERING
@@ -236,19 +394,15 @@ with st.sidebar:
 
     if df is not None:
 
-        st.info(
-            "📂 Dataset Loaded"
-        )
+        st.info("📂 Full Dataset Loaded")
+
+    elif analytics is not None:
+
+        st.success("📊 Analytics Summary Loaded")
 
     else:
 
-        st.warning(
-            "📂 Dataset unavailable"
-        )
-
-    st.caption(
-        "FraudGuard AI v1.0"
-    )
+        st.warning("📂 Analytics Data Unavailable")
 
 
 # ============================================================
@@ -274,7 +428,7 @@ if page == "🏠 Dashboard":
     # DATASET AVAILABLE
     # ========================================================
 
-    if df is not None:
+    if df is not None or analytics is not None:
 
         st.subheader(
             "📈 Transaction Overview"
@@ -365,16 +519,47 @@ if page == "🏠 Dashboard":
                 "💰 Transaction Amount"
             )
 
-            fig = px.histogram(
-                df,
-                x="amt",
-                color="is_fraud",
-                nbins=60,
-                labels={
-                    "amt": "Transaction Amount",
-                    "is_fraud": "Fraud"
-                }
-            )
+            if df is not None:
+
+                fig = px.histogram(
+                    df,
+                    x="amt",
+                    color="is_fraud",
+                    nbins=60,
+                    labels={
+                        "amt": "Transaction Amount",
+                        "is_fraud": "Fraud"
+                    }
+                )
+
+            else:
+
+                hist_df = pd.DataFrame(
+                    analytics["amount_histogram"]
+                )
+
+                hist_df = hist_df.melt(
+                    id_vars=["label"],
+                    value_vars=[
+                        "legitimate",
+                        "fraud"
+                    ],
+                    var_name="type",
+                    value_name="count"
+                )
+
+                fig = px.bar(
+                    hist_df,
+                    x="label",
+                    y="count",
+                    color="type",
+                    barmode="group",
+                    labels={
+                        "label": "Transaction Amount",
+                        "count": "Transactions",
+                        "type": "Transaction Type"
+                    }
+                )
 
             fig.update_layout(
                 height=400,
@@ -401,14 +586,25 @@ if page == "🏠 Dashboard":
             "🔎 Quick Insights"
         )
 
-        fraud_avg = (
-            df[df["is_fraud"] == 1]["amt"].mean()
-        )
+        if df is not None:
 
-        legitimate_avg = (
-            df[df["is_fraud"] == 0]["amt"].mean()
-        )
+            fraud_avg = df[
+                df["is_fraud"] == 1
+            ]["amt"].mean()
 
+            legitimate_avg = df[
+                df["is_fraud"] == 0
+            ]["amt"].mean()
+
+        else:
+
+            fraud_avg = analytics["metrics"][
+                "average_fraud_amount"
+            ]
+
+            legitimate_avg = analytics["metrics"][
+                "average_legitimate_amount"
+            ]
         i1, i2, i3 = st.columns(3)
 
         with i1:
@@ -527,18 +723,13 @@ elif page == "📊 Analytics":
 
     st.divider()
 
-    if df is None:
+    if df is None and analytics is None:
 
         st.warning(
             "📂 Analytics require fraudTest.csv."
         )
 
-        st.info(
-            "The dataset remains available on your local "
-            "computer but is excluded from GitHub because "
-            "of its large file size."
-        )
-
+        
     else:
 
         # ====================================================
@@ -553,11 +744,33 @@ elif page == "📊 Analytics":
                 "🕐 Fraud by Transaction Hour"
             )
 
-            hourly = (
-                df.groupby("hour")["is_fraud"]
-                .sum()
-                .reset_index()
-            )
+            if df is not None:
+
+                hourly = (
+                    df.groupby("hour")["is_fraud"]
+                    .sum()
+                    .reset_index()
+                )
+
+            else:
+
+                hourly = pd.DataFrame(
+                    analytics["fraud_by_hour"]
+                )
+
+                hourly = hourly[
+                    ["label", "fraud"]
+                ]
+
+                hourly.columns = [
+                    "hour",
+                    "is_fraud"
+                ]
+
+                hourly["hour"] = pd.to_numeric(
+                    hourly["hour"],
+                    errors="coerce"
+                )
 
             fig = px.line(
                 hourly,
@@ -585,18 +798,35 @@ elif page == "📊 Analytics":
                 "💰 Fraud by Amount Range"
             )
 
-            amount_data = (
-                df[df["is_fraud"] == 1]
-                ["amount_range"]
-                .value_counts()
-                .sort_index()
-                .reset_index()
-            )
+            if df is not None:
 
-            amount_data.columns = [
-                "Range",
-                "Fraud"
-            ]
+                amount_data = (
+                    df[df["is_fraud"] == 1]
+                    ["amount_range"]
+                    .value_counts()
+                    .sort_index()
+                    .reset_index()
+                )
+
+                amount_data.columns = [
+                    "Range",
+                    "Fraud"
+                ]
+
+            else:
+
+                amount_data = pd.DataFrame(
+                    analytics["fraud_by_amount_range"]
+                )
+
+                amount_data = amount_data[
+                    ["label", "fraud"]
+                ]
+
+                amount_data.columns = [
+                    "Range",
+                    "Fraud"
+                ]
 
             fig = px.bar(
                 amount_data,
@@ -629,13 +859,41 @@ elif page == "📊 Analytics":
 
             if "category" in df.columns:
 
-                category = (
-                    df[df["is_fraud"] == 1]
-                    ["category"]
-                    .value_counts()
-                    .head(10)
-                    .reset_index()
-                )
+                if df is not None:
+
+                    category = (
+                        df[df["is_fraud"] == 1]
+                        ["category"]
+                        .value_counts()
+                        .head(10)
+                        .reset_index()
+                    )
+
+                    category.columns = [
+                        "Category",
+                        "Fraud"
+                    ]
+
+                else:
+
+                    category = pd.DataFrame(
+                        analytics["fraud_by_category"]
+                    )
+
+                    category = (
+                        category
+                        .sort_values("fraud", ascending=False)
+                        .head(10)
+                    )
+
+                    category = category[
+                        ["label", "fraud"]
+                    ]
+
+                    category.columns = [
+                        "Category",
+                        "Fraud"
+                    ]
 
                 category.columns = [
                     "Category",
@@ -672,17 +930,34 @@ elif page == "📊 Analytics":
 
             if "gender" in df.columns:
 
-                gender = (
-                    df[df["is_fraud"] == 1]
-                    ["gender"]
-                    .value_counts()
-                    .reset_index()
-                )
+                if df is not None:
 
-                gender.columns = [
-                    "Gender",
-                    "Fraud"
-                ]
+                    gender = (
+                        df[df["is_fraud"] == 1]
+                        ["gender"]
+                        .value_counts()
+                        .reset_index()
+                    )
+
+                    gender.columns = [
+                        "Gender",
+                        "Fraud"
+                    ]
+
+                else:
+
+                    gender = pd.DataFrame(
+                        analytics["fraud_by_gender"]
+                    )
+
+                    gender = gender[
+                        ["label", "fraud"]
+                    ]
+
+                    gender.columns = [
+                        "Gender",
+                        "Fraud"
+                    ]
 
                 fig = px.pie(
                     gender,
@@ -720,11 +995,28 @@ elif page == "📊 Analytics":
                 "📅 Fraud by Day of Week"
             )
 
-            day = (
-                df.groupby("day_of_week")["is_fraud"]
-                .sum()
-                .reset_index()
-            )
+            if df is not None:
+
+                day = (
+                    df.groupby("day_of_week")["is_fraud"]
+                    .sum()
+                    .reset_index()
+                )
+
+            else:
+
+                day = pd.DataFrame(
+                    analytics["fraud_by_day"]
+                )
+
+                day = day[
+                    ["label", "fraud"]
+                ]
+
+                day.columns = [
+                    "day_of_week",
+                    "is_fraud"
+                ]
 
             fig = px.bar(
                 day,
@@ -751,11 +1043,33 @@ elif page == "📊 Analytics":
                 "📆 Fraud by Month"
             )
 
-            month = (
-                df.groupby("month")["is_fraud"]
-                .sum()
-                .reset_index()
-            )
+            if df is not None:
+
+                month = (
+                    df.groupby("month")["is_fraud"]
+                    .sum()
+                    .reset_index()
+                )
+
+            else:
+
+                month = pd.DataFrame(
+                    analytics["fraud_by_month"]
+                )
+
+                month = month[
+                    ["label", "fraud"]
+                ]
+
+                month.columns = [
+                    "month",
+                    "is_fraud"
+                ]
+
+                month["month"] = pd.to_numeric(
+                    month["month"],
+                    errors="coerce"
+                )
 
             fig = px.line(
                 month,
@@ -791,11 +1105,28 @@ elif page == "📊 Analytics":
                 "🗓️ Weekend vs Weekday"
             )
 
-            weekend = (
-                df.groupby("is_weekend")["is_fraud"]
-                .sum()
-                .reset_index()
-            )
+            if df is not None:
+
+                weekend = (
+                    df.groupby("is_weekend")["is_fraud"]
+                    .sum()
+                    .reset_index()
+                )
+
+            else:
+
+                weekend = pd.DataFrame(
+                    analytics["fraud_by_weekend"]
+                )
+
+                weekend = weekend[
+                    ["label", "fraud"]
+                ]
+
+                weekend.columns = [
+                    "is_weekend",
+                    "is_fraud"
+                ]
 
             weekend["is_weekend"] = (
                 weekend["is_weekend"]
@@ -830,11 +1161,28 @@ elif page == "📊 Analytics":
                 "🌙 Night vs Day Fraud"
             )
 
-            night = (
-                df.groupby("is_night")["is_fraud"]
-                .sum()
-                .reset_index()
-            )
+            if df is not None:
+
+                night = (
+                    df.groupby("is_night")["is_fraud"]
+                    .sum()
+                    .reset_index()
+                )
+
+            else:
+
+                night = pd.DataFrame(
+                    analytics["fraud_by_night"]
+                )
+
+                night = night[
+                    ["label", "fraud"]
+                ]
+
+                night.columns = [
+                    "is_night",
+                    "is_fraud"
+                ]
 
             night["is_night"] = (
                 night["is_night"]
@@ -870,11 +1218,28 @@ elif page == "📊 Analytics":
             "📍 Transaction Distance Analysis"
         )
 
-        distance_data = (
-            df.groupby("is_fraud")["distance_km"]
-            .mean()
-            .reset_index()
-        )
+        if df is not None:
+
+            distance_data = (
+                df.groupby("is_fraud")["distance_km"]
+                .mean()
+                .reset_index()
+            )
+
+        else:
+
+            distance_data = pd.DataFrame(
+                analytics["distance_analysis"]
+            )
+
+            distance_data = distance_data[
+                ["is_fraud", "mean"]
+            ]
+
+            distance_data.columns = [
+                "is_fraud",
+                "distance_km"
+            ]
 
         distance_data["is_fraud"] = (
             distance_data["is_fraud"]
@@ -909,10 +1274,52 @@ elif page == "📊 Analytics":
             "🔗 Feature Correlation"
         )
 
-        numeric = df.select_dtypes(
-            include=np.number
+        if df is not None:
+
+            numeric = df.select_dtypes(
+                include=np.number
+            )
+
+            if "is_fraud" in numeric.columns:
+
+                correlation = (
+                    numeric.corr()["is_fraud"]
+                    .drop("is_fraud")
+                    .sort_values()
+                )
+
+        else:
+
+            corr_df = pd.DataFrame(
+                analytics["correlation"]
+            )
+
+            if "is_fraud" in corr_df.columns:
+
+                correlation = (
+                    corr_df["is_fraud"]
+                    .drop("is_fraud")
+                    .sort_values()
+                )
+
+
+        fig = px.bar(
+            correlation,
+            orientation="h",
+            labels={
+                "value": "Correlation",
+                "index": "Feature"
+            }
         )
 
+        fig.update_layout(
+            height=520
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
         if "is_fraud" in numeric.columns:
 
             correlation = (
