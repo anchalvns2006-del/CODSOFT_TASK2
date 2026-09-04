@@ -1274,6 +1274,8 @@ elif page == "📊 Analytics":
             "🔗 Feature Correlation"
         )
 
+        correlation = None
+
         if df is not None:
 
             numeric = df.select_dtypes(
@@ -1303,30 +1305,7 @@ elif page == "📊 Analytics":
                 )
 
 
-        fig = px.bar(
-            correlation,
-            orientation="h",
-            labels={
-                "value": "Correlation",
-                "index": "Feature"
-            }
-        )
-
-        fig.update_layout(
-            height=520
-        )
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-        if "is_fraud" in numeric.columns:
-
-            correlation = (
-                numeric.corr()["is_fraud"]
-                .drop("is_fraud")
-                .sort_values()
-            )
+        if correlation is not None:
 
             fig = px.bar(
                 correlation,
@@ -1346,6 +1325,11 @@ elif page == "📊 Analytics":
                 use_container_width=True
             )
 
+        else:
+
+            st.warning(
+                "⚠️ Correlation data unavailable."
+            )
 
 # ============================================================
 # FRAUD PREDICTION
