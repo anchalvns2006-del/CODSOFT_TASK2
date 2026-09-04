@@ -6,8 +6,9 @@ from pathlib import Path
 import plotly.express as px
 import plotly.graph_objects as go
 
+
 # ============================================================
-# CONFIG
+# PAGE CONFIG
 # ============================================================
 
 st.set_page_config(
@@ -17,8 +18,9 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
 # ============================================================
-# CSS
+# LOAD CSS
 # ============================================================
 
 css_file = Path("style.css")
@@ -29,111 +31,225 @@ if css_file.exists():
         unsafe_allow_html=True
     )
 
+
 # ============================================================
-# LOAD MODEL
+# PATHS
 # ============================================================
 
 MODEL_PATH = Path("notebooks/fraud_detection_model.pkl")
 DATA_PATH = Path("notebooks/fraudTest.csv")
 
-model = joblib.load(MODEL_PATH)
+
+# ============================================================
+# LOAD MODEL
+# ============================================================
+
+try:
+    model = joblib.load(MODEL_PATH)
+    model_loaded = True
+except Exception as e:
+    model_loaded = False
+    model = None
+
+
+# ============================================================
+# LOAD DATASET
+# ============================================================
+
+df = None
 
 if DATA_PATH.exists():
-    df = pd.read_csv(DATA_PATH)
+
+    try:
+        df = pd.read_csv(DATA_PATH)
+
+    except Exception:
+        df = None
+
+
+# ============================================================
+# FEATURE ENGINEERING
+# ============================================================
+
+if df is not None:
+
+    if "trans_date_trans_time" in df.columns:
+
+        df["trans_date_trans_time"] = pd.to_datetime(
+            df["trans_date_trans_time"],
+            errors="coerce"
+        )
+
+        df["hour"] = (
+            df["trans_date_trans_time"]
+            .dt.hour
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["month"] = (
+            df["trans_date_trans_time"]
+            .dt.month
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["day_of_week"] = (
+            df["trans_date_trans_time"]
+            .dt.dayofweek
+            .fillna(0)
+            .astype(int)
+        )
+
+        df["is_weekend"] = (
+            df["day_of_week"] >= 5
+        ).astype(int)
+
+        df["is_night"] = (
+            (df["hour"] < 6) |
+            (df["hour"] >= 22)
+        ).astype(int)
+
+
+    if "amt" in df.columns:
+
+        df["amount_range"] = pd.cut(
+            df["amt"],
+            bins=[
+                0,
+                25,
+                50,
+                100,
+                250,
+                500,
+                1000,
+                np.inf
+            ],
+            labels=[
+                "0-25",
+                "25-50",
+                "50-100",
+                "100-250",
+                "250-500",
+                "500-1000",
+                "1000+"
+            ]
+        )
+
+
+    if all(
+        column in df.columns
+        for column in [
+            "lat",
+            "long",
+            "merch_lat",
+            "merch_long"
+        ]
+    ):
+
+        df["distance_km"] = np.sqrt(
+            (df["lat"] - df["merch_lat"]) ** 2 +
+            (df["long"] - df["merch_long"]) ** 2
+        )
+
+    else:
+
+        df["distance_km"] = 0.0
+
+
+# ============================================================
+# DATA METRICS
+# ============================================================
+
+if (
+    df is not None
+    and "is_fraud" in df.columns
+):
+
+    total_transactions = len(df)
+
+    fraud_count = int(
+        df["is_fraud"].sum()
+    )
+
+    legitimate_count = (
+        total_transactions - fraud_count
+    )
+
+    fraud_rate = (
+        fraud_count / total_transactions * 100
+        if total_transactions > 0
+        else 0
+    )
+
 else:
-    st.error("⚠️ Dataset not found. Check fraudTest.csv path.")
-    st.stop()
 
+    total_transactions = 0
+    fraud_count = 0
+    legitimate_count = 0
+    fraud_rate = 0
 
-# ============================================================
-# FEATURE ENGINEERING FOR ANALYTICS
-# ============================================================
-
-df["trans_date_trans_time"] = pd.to_datetime(
-    df["trans_date_trans_time"]
-)
-
-df["hour"] = df["trans_date_trans_time"].dt.hour
-df["month"] = df["trans_date_trans_time"].dt.month
-df["day_of_week"] = df["trans_date_trans_time"].dt.dayofweek
-
-df["is_weekend"] = (
-    df["day_of_week"] >= 5
-).astype(int)
-
-df["is_night"] = (
-    (df["hour"] < 6) |
-    (df["hour"] >= 22)
-).astype(int)
-
-df["amount_range"] = pd.cut(
-    df["amt"],
-    bins=[0, 25, 50, 100, 250, 500, 1000, np.inf],
-    labels=[
-        "0-25",
-        "25-50",
-        "50-100",
-        "100-250",
-        "250-500",
-        "500-1000",
-        "1000+"
-    ]
-)
-
-df["distance_km"] = np.sqrt(
-    (df["lat"] - df["merch_lat"]) ** 2 +
-    (df["long"] - df["merch_long"]) ** 2
-)
-# ============================================================
-# BASIC DATA
-# ============================================================
-
-total_transactions = len(df)
-fraud_count = int(df["is_fraud"].sum())
-legitimate_count = total_transactions - fraud_count
-fraud_rate = fraud_count / total_transactions * 100
 
 # ============================================================
 # SIDEBAR
 # ============================================================
 
-st.sidebar.markdown(
-    """
-    <div class="brand">
-        <div class="brand-icon">🛡️</div>
-        <div>
-            <h2>FraudGuard</h2>
-            <span>AI Security Platform</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+with st.sidebar:
 
-st.sidebar.markdown("---")
+    st.title("🛡️ FraudGuard AI")
 
-page = st.sidebar.radio(
-    "MAIN MENU",
-    [
-        "🏠 Dashboard",
-        "📊 Analytics",
-        "🔮 Fraud Prediction",
-        "🤖 Model Performance"
-    ]
-)
+    st.caption(
+        "AI-Powered Financial Security Platform"
+    )
 
-st.sidebar.markdown("---")
+    st.divider()
 
-st.sidebar.markdown(
-    """
-    <div class="model-status">
-        <span class="online-dot"></span>
-        <b>Model Online</b>
-        <small>Random Forest • ML Engine</small>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    page = st.radio(
+        "MAIN MENU",
+        [
+            "🏠 Dashboard",
+            "📊 Analytics",
+            "🔮 Fraud Prediction",
+            "🤖 Model Performance"
+        ]
+    )
+
+    st.divider()
+
+    if model_loaded:
+
+        st.success(
+            "🟢 Model Online"
+        )
+
+        st.caption(
+            "Random Forest • ML Engine"
+        )
+
+    else:
+
+        st.error(
+            "🔴 Model Offline"
+        )
+
+    st.divider()
+
+    if df is not None:
+
+        st.info(
+            "📂 Dataset Loaded"
+        )
+
+    else:
+
+        st.warning(
+            "📂 Dataset unavailable"
+        )
+
+    st.caption(
+        "FraudGuard AI v1.0"
+    )
+
 
 # ============================================================
 # DASHBOARD
@@ -141,153 +257,261 @@ st.sidebar.markdown(
 
 if page == "🏠 Dashboard":
 
-    st.markdown(
-        """
-        <div class="hero">
-            <div>
-                <div class="eyebrow">AI-POWERED FINANCIAL SECURITY</div>
-                <h1>FraudGuard AI</h1>
-                <p>
-                    Intelligent credit card fraud detection
-                    powered by machine learning.
-                </p>
-            </div>
-            <div class="hero-icon">🛡️</div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("🛡️ FraudGuard AI")
+
+    st.subheader(
+        "Intelligent Credit Card Fraud Detection"
     )
 
-    st.markdown("## 📈 Transaction Overview")
+    st.write(
+        "Detect suspicious financial transactions "
+        "using machine learning and interactive analytics."
+    )
 
-    c1, c2, c3, c4 = st.columns(4)
+    st.divider()
 
-    cards = [
-        ("💳", "Total Transactions", f"{total_transactions:,}", "All transactions"),
-        ("🚨", "Fraud Transactions", f"{fraud_count:,}", "Detected fraud"),
-        ("✅", "Legitimate", f"{legitimate_count:,}", "Safe transactions"),
-        ("⚠️", "Fraud Rate", f"{fraud_rate:.2f}%", "Overall fraud rate")
-    ]
+    # ========================================================
+    # DATASET AVAILABLE
+    # ========================================================
 
-    for col, (icon, title, value, sub) in zip(
-        [c1, c2, c3, c4],
-        cards
-    ):
-        with col:
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-icon">{icon}</div>
-                    <div class="metric-title">{title}</div>
-                    <div class="metric-value">{value}</div>
-                    <div class="metric-sub">{sub}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
+    if df is not None:
+
+        st.subheader(
+            "📈 Transaction Overview"
+        )
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        with c1:
+
+            st.metric(
+                "💳 Total Transactions",
+                f"{total_transactions:,}"
             )
 
-    st.markdown("<br>", unsafe_allow_html=True)
+        with c2:
 
-    # --------------------------------------------------------
-    # FRAUD VS LEGITIMATE
-    # --------------------------------------------------------
+            st.metric(
+                "🚨 Fraud Transactions",
+                f"{fraud_count:,}"
+            )
 
-    col1, col2 = st.columns(2)
+        with c3:
 
-    with col1:
+            st.metric(
+                "✅ Legitimate",
+                f"{legitimate_count:,}"
+            )
 
-        st.markdown("### 🥧 Transaction Distribution")
+        with c4:
 
-        dist = pd.DataFrame({
-            "Type": ["Legitimate", "Fraud"],
-            "Count": [legitimate_count, fraud_count]
-        })
+            st.metric(
+                "⚠️ Fraud Rate",
+                f"{fraud_rate:.2f}%"
+            )
 
-        fig = px.pie(
-            dist,
-            names="Type",
-            values="Count",
-            hole=0.62
+        st.divider()
+
+        # ====================================================
+        # CHARTS
+        # ====================================================
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader(
+                "🥧 Transaction Distribution"
+            )
+
+            distribution = pd.DataFrame(
+                {
+                    "Type": [
+                        "Legitimate",
+                        "Fraud"
+                    ],
+                    "Count": [
+                        legitimate_count,
+                        fraud_count
+                    ]
+                }
+            )
+
+            fig = px.pie(
+                distribution,
+                names="Type",
+                values="Count",
+                hole=0.60
+            )
+
+            fig.update_layout(
+                height=400,
+                margin=dict(
+                    t=20,
+                    b=20,
+                    l=20,
+                    r=20
+                )
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        with col2:
+
+            st.subheader(
+                "💰 Transaction Amount"
+            )
+
+            fig = px.histogram(
+                df,
+                x="amt",
+                color="is_fraud",
+                nbins=60,
+                labels={
+                    "amt": "Transaction Amount",
+                    "is_fraud": "Fraud"
+                }
+            )
+
+            fig.update_layout(
+                height=400,
+                margin=dict(
+                    t=20,
+                    b=20,
+                    l=20,
+                    r=20
+                )
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # ====================================================
+        # QUICK INSIGHTS
+        # ====================================================
+
+        st.subheader(
+            "🔎 Quick Insights"
         )
 
-        fig.update_layout(
-            showlegend=True,
-            margin=dict(t=20, b=20, l=10, r=10),
-            height=350
+        fraud_avg = (
+            df[df["is_fraud"] == 1]["amt"].mean()
         )
 
-        st.plotly_chart(fig, use_container_width=True)
-
-    # --------------------------------------------------------
-
-    with col2:
-
-        st.markdown("### 💰 Transaction Amount")
-
-        fig = px.histogram(
-            df,
-            x="amt",
-            color="is_fraud",
-            nbins=60,
-            labels={
-                "amt": "Transaction Amount",
-                "is_fraud": "Fraud"
-            }
+        legitimate_avg = (
+            df[df["is_fraud"] == 0]["amt"].mean()
         )
 
-        fig.update_layout(
-            height=350,
-            margin=dict(t=20, b=20, l=10, r=10)
+        i1, i2, i3 = st.columns(3)
+
+        with i1:
+
+            st.metric(
+                "💰 Average Fraud Amount",
+                f"${fraud_avg:.2f}"
+            )
+
+        with i2:
+
+            st.metric(
+                "💵 Average Legitimate Amount",
+                f"${legitimate_avg:.2f}"
+            )
+
+        with i3:
+
+            st.metric(
+                "🤖 Detection Model",
+                "Random Forest"
+            )
+
+    # ========================================================
+    # DATASET NOT AVAILABLE
+    # ========================================================
+
+    else:
+
+        st.warning(
+            "📂 Dashboard analytics are currently unavailable "
+            "because fraudTest.csv is not included in the "
+            "GitHub deployment."
         )
 
-        st.plotly_chart(fig, use_container_width=True)
-
-    # --------------------------------------------------------
-    # QUICK INSIGHTS
-    # --------------------------------------------------------
-
-    st.markdown("## 🔎 Quick Insights")
-
-    fraud_avg = df[df["is_fraud"] == 1]["amt"].mean()
-    normal_avg = df[df["is_fraud"] == 0]["amt"].mean()
-
-    i1, i2, i3 = st.columns(3)
-
-    with i1:
-        st.markdown(
-            f"""
-            <div class="insight-card">
-                <span>💰</span>
-                <b>Average Fraud Amount</b>
-                <strong>${fraud_avg:.2f}</strong>
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.info(
+            "💡 Prediction and Model Performance continue "
+            "to work without the large dataset."
         )
 
-    with i2:
-        st.markdown(
-            f"""
-            <div class="insight-card">
-                <span>💵</span>
-                <b>Average Legitimate Amount</b>
-                <strong>${normal_avg:.2f}</strong>
-            </div>
-            """,
-            unsafe_allow_html=True
+        st.subheader(
+            "🤖 Fraud Detection Engine"
         )
 
-    with i3:
-        st.markdown(
-            """
-            <div class="insight-card">
-                <span>🤖</span>
-                <b>Detection Model</b>
-                <strong>Random Forest</strong>
-            </div>
-            """,
-            unsafe_allow_html=True
+        c1, c2, c3 = st.columns(3)
+
+        with c1:
+
+            st.metric(
+                "🤖 ML Model",
+                "Random Forest"
+            )
+
+        with c2:
+
+            st.metric(
+                "🟢 System",
+                "Online" if model_loaded else "Offline"
+            )
+
+        with c3:
+
+            st.metric(
+                "🔮 Prediction",
+                "Available"
+            )
+
+        st.divider()
+
+        st.subheader(
+            "🚀 Available Capabilities"
         )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.write(
+                "🔮 Real-time fraud prediction"
+            )
+
+            st.write(
+                "🤖 Random Forest classification"
+            )
+
+            st.write(
+                "📊 Model evaluation"
+            )
+
+        with col2:
+
+            st.write(
+                "🌲 Feature importance"
+            )
+
+            st.write(
+                "📈 Interactive analytics"
+            )
+
+            st.write(
+                "🛡️ Risk probability scoring"
+            )
+
 
 # ============================================================
 # ANALYTICS
@@ -295,167 +519,206 @@ if page == "🏠 Dashboard":
 
 elif page == "📊 Analytics":
 
-    st.markdown(
-        """
-        <div class="page-header">
-            <div class="eyebrow">DATA INTELLIGENCE</div>
-            <h1>Fraud Analytics</h1>
-            <p>Explore transaction patterns and fraud behaviour.</p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("📊 Fraud Analytics")
+
+    st.write(
+        "Explore transaction patterns and fraudulent behaviour."
     )
 
-    # ========================================================
-    # 1. FRAUD BY HOUR
-    # ========================================================
+    st.divider()
 
-    col1, col2 = st.columns(2)
+    if df is None:
 
-    with col1:
-
-        st.markdown("### 🕐 Fraud by Transaction Hour")
-
-        hourly = (
-            df.groupby("hour")["is_fraud"]
-            .sum()
-            .reset_index()
+        st.warning(
+            "📂 Analytics require fraudTest.csv."
         )
 
-        fig = px.line(
-            hourly,
-            x="hour",
-            y="is_fraud",
-            markers=True,
-            labels={
-                "hour": "Hour",
-                "is_fraud": "Fraud Transactions"
-            }
+        st.info(
+            "The dataset remains available on your local "
+            "computer but is excluded from GitHub because "
+            "of its large file size."
         )
 
-        fig.update_layout(height=350)
+    else:
 
-        st.plotly_chart(fig, use_container_width=True)
+        # ====================================================
+        # FRAUD BY HOUR
+        # ====================================================
 
-    # ========================================================
+        col1, col2 = st.columns(2)
 
-    with col2:
+        with col1:
 
-        st.markdown("### 💰 Fraud by Amount Range")
+            st.subheader(
+                "🕐 Fraud by Transaction Hour"
+            )
 
-        bins = [
-            0, 25, 50, 100,
-            250, 500,
-            1000, float("inf")
-        ]
+            hourly = (
+                df.groupby("hour")["is_fraud"]
+                .sum()
+                .reset_index()
+            )
 
-        labels = [
-            "0-25",
-            "25-50",
-            "50-100",
-            "100-250",
-            "250-500",
-            "500-1000",
-            "1000+"
-        ]
+            fig = px.line(
+                hourly,
+                x="hour",
+                y="is_fraud",
+                markers=True,
+                labels={
+                    "hour": "Hour",
+                    "is_fraud": "Fraud Transactions"
+                }
+            )
 
-        temp = df.copy()
+            fig.update_layout(
+                height=380
+            )
 
-        temp["amount_range_chart"] = pd.cut(
-            temp["amt"],
-            bins=bins,
-            labels=labels
-        )
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
-        amount_data = (
-            temp[temp["is_fraud"] == 1]
-            ["amount_range_chart"]
-            .value_counts()
-            .reindex(labels)
-            .fillna(0)
-            .reset_index()
-        )
+        with col2:
 
-        amount_data.columns = ["Range", "Fraud"]
+            st.subheader(
+                "💰 Fraud by Amount Range"
+            )
 
-        fig = px.bar(
-            amount_data,
-            x="Range",
-            y="Fraud"
-        )
+            amount_data = (
+                df[df["is_fraud"] == 1]
+                ["amount_range"]
+                .value_counts()
+                .sort_index()
+                .reset_index()
+            )
 
-        fig.update_layout(height=350)
+            amount_data.columns = [
+                "Range",
+                "Fraud"
+            ]
 
-        st.plotly_chart(fig, use_container_width=True)
+            fig = px.bar(
+                amount_data,
+                x="Range",
+                y="Fraud"
+            )
 
-    # ========================================================
-    # 2. CATEGORY
-    # ========================================================
+            fig.update_layout(
+                height=380
+            )
 
-    col1, col2 = st.columns(2)
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
-    with col1:
+        st.divider()
 
-        st.markdown("### 🛒 Fraud by Category")
+        # ====================================================
+        # CATEGORY / GENDER
+        # ====================================================
 
-        category = (
-            df[df["is_fraud"] == 1]
-            ["category"]
-            .value_counts()
-            .head(10)
-            .reset_index()
-        )
+        col1, col2 = st.columns(2)
 
-        category.columns = ["Category", "Fraud"]
+        with col1:
 
-        fig = px.bar(
-            category,
-            x="Fraud",
-            y="Category",
-            orientation="h"
-        )
+            st.subheader(
+                "🛒 Fraud by Category"
+            )
 
-        fig.update_layout(height=400)
+            if "category" in df.columns:
 
-        st.plotly_chart(fig, use_container_width=True)
+                category = (
+                    df[df["is_fraud"] == 1]
+                    ["category"]
+                    .value_counts()
+                    .head(10)
+                    .reset_index()
+                )
 
-    # ========================================================
+                category.columns = [
+                    "Category",
+                    "Fraud"
+                ]
 
-    with col2:
+                fig = px.bar(
+                    category,
+                    x="Fraud",
+                    y="Category",
+                    orientation="h"
+                )
 
-        st.markdown("### 👥 Fraud by Gender")
+                fig.update_layout(
+                    height=420
+                )
 
-        gender = (
-            df[df["is_fraud"] == 1]
-            ["gender"]
-            .value_counts()
-            .reset_index()
-        )
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
 
-        gender.columns = ["Gender", "Fraud"]
+            else:
 
-        fig = px.pie(
-            gender,
-            names="Gender",
-            values="Fraud",
-            hole=0.5
-        )
+                st.info(
+                    "Category information unavailable."
+                )
 
-        fig.update_layout(height=400)
+        with col2:
 
-        st.plotly_chart(fig, use_container_width=True)
+            st.subheader(
+                "👥 Fraud by Gender"
+            )
 
-    # ========================================================
-    # 3. DAY / MONTH
-    # ========================================================
+            if "gender" in df.columns:
 
-    col1, col2 = st.columns(2)
+                gender = (
+                    df[df["is_fraud"] == 1]
+                    ["gender"]
+                    .value_counts()
+                    .reset_index()
+                )
 
-    with col1:
+                gender.columns = [
+                    "Gender",
+                    "Fraud"
+                ]
 
-        st.markdown("### 📅 Fraud by Day of Week")
+                fig = px.pie(
+                    gender,
+                    names="Gender",
+                    values="Fraud",
+                    hole=0.55
+                )
 
-        if "day_of_week" in df.columns:
+                fig.update_layout(
+                    height=420
+                )
+
+                st.plotly_chart(
+                    fig,
+                    use_container_width=True
+                )
+
+            else:
+
+                st.info(
+                    "Gender information unavailable."
+                )
+
+        st.divider()
+
+        # ====================================================
+        # DAY / MONTH
+        # ====================================================
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            st.subheader(
+                "📅 Fraud by Day of Week"
+            )
 
             day = (
                 df.groupby("day_of_week")["is_fraud"]
@@ -468,22 +731,25 @@ elif page == "📊 Analytics":
                 x="day_of_week",
                 y="is_fraud",
                 labels={
-                    "day_of_week": "Day",
-                    "is_fraud": "Fraud"
+                    "day_of_week": "Day of Week",
+                    "is_fraud": "Fraud Transactions"
                 }
             )
 
-            fig.update_layout(height=350)
+            fig.update_layout(
+                height=380
+            )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
-    # ========================================================
+        with col2:
 
-    with col2:
-
-        st.markdown("### 📆 Fraud by Month")
-
-        if "month" in df.columns:
+            st.subheader(
+                "📆 Fraud by Month"
+            )
 
             month = (
                 df.groupby("month")["is_fraud"]
@@ -495,79 +761,114 @@ elif page == "📊 Analytics":
                 month,
                 x="month",
                 y="is_fraud",
-                markers=True
+                markers=True,
+                labels={
+                    "month": "Month",
+                    "is_fraud": "Fraud Transactions"
+                }
             )
 
-            fig.update_layout(height=350)
+            fig.update_layout(
+                height=380
+            )
 
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
 
-    # ========================================================
-    # 4. WEEKEND / NIGHT
-    # ========================================================
+        st.divider()
 
-    col1, col2 = st.columns(2)
+        # ====================================================
+        # WEEKEND / NIGHT
+        # ====================================================
 
-    with col1:
+        col1, col2 = st.columns(2)
 
-        st.markdown("### 🗓️ Weekend vs Weekday")
+        with col1:
 
-        weekend = (
-            df.groupby("is_weekend")["is_fraud"]
-            .sum()
-            .reset_index()
+            st.subheader(
+                "🗓️ Weekend vs Weekday"
+            )
+
+            weekend = (
+                df.groupby("is_weekend")["is_fraud"]
+                .sum()
+                .reset_index()
+            )
+
+            weekend["is_weekend"] = (
+                weekend["is_weekend"]
+                .map({
+                    0: "Weekday",
+                    1: "Weekend"
+                })
+            )
+
+            fig = px.bar(
+                weekend,
+                x="is_weekend",
+                y="is_fraud",
+                labels={
+                    "is_weekend": "Transaction Day",
+                    "is_fraud": "Fraud"
+                }
+            )
+
+            fig.update_layout(
+                height=380
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        with col2:
+
+            st.subheader(
+                "🌙 Night vs Day Fraud"
+            )
+
+            night = (
+                df.groupby("is_night")["is_fraud"]
+                .sum()
+                .reset_index()
+            )
+
+            night["is_night"] = (
+                night["is_night"]
+                .map({
+                    0: "Day",
+                    1: "Night"
+                })
+            )
+
+            fig = px.pie(
+                night,
+                names="is_night",
+                values="is_fraud",
+                hole=0.55
+            )
+
+            fig.update_layout(
+                height=380
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
+        st.divider()
+
+        # ====================================================
+        # DISTANCE
+        # ====================================================
+
+        st.subheader(
+            "📍 Transaction Distance Analysis"
         )
-
-        weekend["is_weekend"] = weekend["is_weekend"].map({
-            0: "Weekday",
-            1: "Weekend"
-        })
-
-        fig = px.bar(
-            weekend,
-            x="is_weekend",
-            y="is_fraud"
-        )
-
-        fig.update_layout(height=350)
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ========================================================
-
-    with col2:
-
-        st.markdown("### 🌙 Night vs Day Fraud")
-
-        night = (
-            df.groupby("is_night")["is_fraud"]
-            .sum()
-            .reset_index()
-        )
-
-        night["is_night"] = night["is_night"].map({
-            0: "Day",
-            1: "Night"
-        })
-
-        fig = px.pie(
-            night,
-            names="is_night",
-            values="is_fraud",
-            hole=0.55
-        )
-
-        fig.update_layout(height=350)
-
-        st.plotly_chart(fig, use_container_width=True)
-
-    # ========================================================
-    # 5. DISTANCE
-    # ========================================================
-
-    st.markdown("### 📍 Transaction Distance Analysis")
-
-    if "distance_km" in df.columns:
 
         distance_data = (
             df.groupby("is_fraud")["distance_km"]
@@ -575,10 +876,13 @@ elif page == "📊 Analytics":
             .reset_index()
         )
 
-        distance_data["is_fraud"] = distance_data["is_fraud"].map({
-            0: "Legitimate",
-            1: "Fraud"
-        })
+        distance_data["is_fraud"] = (
+            distance_data["is_fraud"]
+            .map({
+                0: "Legitimate",
+                1: "Fraud"
+            })
+        )
 
         fig = px.bar(
             distance_data,
@@ -586,7 +890,7 @@ elif page == "📊 Analytics":
             y="distance_km",
             labels={
                 "is_fraud": "Transaction Type",
-                "distance_km": "Average Distance (km)"
+                "distance_km": "Average Distance"
             }
         )
 
@@ -595,184 +899,256 @@ elif page == "📊 Analytics":
             use_container_width=True
         )
 
-    # ========================================================
-    # 6. CORRELATION
-    # ========================================================
+        st.divider()
 
-    st.markdown("### 🔗 Feature Correlation")
+        # ====================================================
+        # CORRELATION
+        # ====================================================
 
-    numeric = df.select_dtypes(include=np.number)
-
-    if "is_fraud" in numeric.columns:
-
-        corr = (
-            numeric.corr()["is_fraud"]
-            .drop("is_fraud")
-            .sort_values()
+        st.subheader(
+            "🔗 Feature Correlation"
         )
 
-        fig = px.bar(
-            corr,
-            orientation="h",
-            labels={
-                "value": "Correlation",
-                "index": "Feature"
-            }
+        numeric = df.select_dtypes(
+            include=np.number
         )
 
-        fig.update_layout(height=500)
+        if "is_fraud" in numeric.columns:
 
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
+            correlation = (
+                numeric.corr()["is_fraud"]
+                .drop("is_fraud")
+                .sort_values()
+            )
+
+            fig = px.bar(
+                correlation,
+                orientation="h",
+                labels={
+                    "value": "Correlation",
+                    "index": "Feature"
+                }
+            )
+
+            fig.update_layout(
+                height=520
+            )
+
+            st.plotly_chart(
+                fig,
+                use_container_width=True
+            )
+
 
 # ============================================================
-# PREDICTION
+# FRAUD PREDICTION
 # ============================================================
 
 elif page == "🔮 Fraud Prediction":
 
-    st.markdown(
-        """
-        <div class="page-header">
-            <div class="eyebrow">REAL-TIME AI ANALYSIS</div>
-            <h1>Fraud Risk Scanner</h1>
-            <p>Evaluate a transaction using the trained ML model.</p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("🔮 Fraud Risk Scanner")
+
+    st.write(
+        "Evaluate a transaction using the trained "
+        "Random Forest machine learning model."
     )
 
-    col1, col2 = st.columns(2)
+    st.divider()
 
-    with col1:
+    if not model_loaded:
 
-        st.markdown("### 💳 Transaction Information")
-
-        amount = st.number_input(
-            "Transaction Amount",
-            min_value=0.0,
-            value=100.0
+        st.error(
+            "❌ Model is not available."
         )
 
-        hour = st.slider(
-            "Transaction Hour",
-            0,
-            23,
-            12
-        )
+    else:
 
-        distance = st.number_input(
-            "Distance from Merchant (km)",
-            min_value=0.0,
-            value=10.0
-        )
+        col1, col2 = st.columns(2)
 
-    with col2:
+        with col1:
 
-        st.markdown("### 👤 Customer Information")
-
-        age = st.number_input(
-            "Customer Age",
-            min_value=18,
-            max_value=100,
-            value=30
-        )
-
-        city_population = st.number_input(
-            "City Population",
-            min_value=0,
-            value=10000
-        )
-
-        weekend = st.selectbox(
-            "Weekend Transaction",
-            ["No", "Yes"]
-        )
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    if st.button(
-        "🛡️ SCAN TRANSACTION",
-        use_container_width=True
-    ):
-
-        features = model.feature_names_in_
-
-        data = pd.DataFrame(
-            0,
-            index=[0],
-            columns=features
-        )
-
-        data["amt"] = amount
-        data["hour"] = hour
-        data["age"] = age
-        data["distance_km"] = distance
-        data["city_pop"] = city_population
-
-        data["is_weekend"] = (
-            1 if weekend == "Yes" else 0
-        )
-
-        data["unix_time"] = hour * 3600
-
-        data["is_night"] = int(
-            hour < 6 or hour >= 22
-        )
-
-        data["large_distance"] = int(
-            distance > 100
-        )
-
-        data["is_high_amount"] = int(
-            amount > 500
-        )
-
-        prediction = model.predict(data)[0]
-
-        probability = model.predict_proba(data)[0][1]
-
-        st.markdown("---")
-
-        if prediction == 1:
-
-            st.markdown(
-                f"""
-                <div class="risk-danger">
-                    <div class="big-icon">🚨</div>
-                    <h2>Fraudulent Transaction Detected</h2>
-                    <p>High-risk transaction pattern identified.</p>
-                    <div class="risk-score">
-                        Risk Score: {probability * 100:.2f}%
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
+            st.subheader(
+                "💳 Transaction Information"
             )
 
-        else:
-
-            st.markdown(
-                f"""
-                <div class="risk-safe">
-                    <div class="big-icon">✓</div>
-                    <h2>Transaction Appears Legitimate</h2>
-                    <p>No strong fraudulent pattern detected.</p>
-                    <div class="risk-score">
-                        Fraud Probability: {probability * 100:.2f}%
-                    </div>
-                </div>
-                """,
-                unsafe_allow_html=True
+            amount = st.number_input(
+                "Transaction Amount",
+                min_value=0.0,
+                value=100.0,
+                step=1.0
             )
 
-        st.markdown("### 📊 Risk Probability")
+            hour = st.slider(
+                "Transaction Hour",
+                min_value=0,
+                max_value=23,
+                value=12
+            )
 
-        st.progress(
-            min(float(probability), 1.0)
+            distance = st.number_input(
+                "Distance from Merchant (km)",
+                min_value=0.0,
+                value=10.0,
+                step=1.0
+            )
+
+        with col2:
+
+            st.subheader(
+                "👤 Customer Information"
+            )
+
+            age = st.number_input(
+                "Customer Age",
+                min_value=18,
+                max_value=100,
+                value=30
+            )
+
+            city_population = st.number_input(
+                "City Population",
+                min_value=0,
+                value=10000,
+                step=1000
+            )
+
+            weekend = st.selectbox(
+                "Weekend Transaction",
+                [
+                    "No",
+                    "Yes"
+                ]
+            )
+
+        st.divider()
+
+        scan = st.button(
+            "🛡️ SCAN TRANSACTION",
+            use_container_width=True,
+            type="primary"
         )
+
+        if scan:
+
+            try:
+
+                features = model.feature_names_in_
+
+                data = pd.DataFrame(
+                    0,
+                    index=[0],
+                    columns=features
+                )
+
+                feature_values = {
+                    "amt": amount,
+                    "hour": hour,
+                    "age": age,
+                    "distance_km": distance,
+                    "city_pop": city_population,
+                    "is_weekend": (
+                        1
+                        if weekend == "Yes"
+                        else 0
+                    ),
+                    "unix_time": hour * 3600,
+                    "is_night": int(
+                        hour < 6 or hour >= 22
+                    ),
+                    "large_distance": int(
+                        distance > 100
+                    ),
+                    "is_high_amount": int(
+                        amount > 500
+                    )
+                }
+
+                for feature, value in feature_values.items():
+
+                    if feature in data.columns:
+
+                        data[feature] = value
+
+                prediction = model.predict(
+                    data
+                )[0]
+
+                probability = model.predict_proba(
+                    data
+                )[0][1]
+
+                st.divider()
+
+                if prediction == 1:
+
+                    st.error(
+                        "🚨 FRAUDULENT TRANSACTION DETECTED"
+                    )
+
+                    st.warning(
+                        "High-risk transaction pattern identified."
+                    )
+
+                    st.metric(
+                        "🚨 Fraud Risk Score",
+                        f"{probability * 100:.2f}%"
+                    )
+
+                else:
+
+                    st.success(
+                        "✅ TRANSACTION APPEARS LEGITIMATE"
+                    )
+
+                    st.info(
+                        "No strong fraudulent pattern detected."
+                    )
+
+                    st.metric(
+                        "🛡️ Fraud Probability",
+                        f"{probability * 100:.2f}%"
+                    )
+
+                st.subheader(
+                    "📊 Risk Probability"
+                )
+
+                st.progress(
+                    min(
+                        max(
+                            float(probability),
+                            0.0
+                        ),
+                        1.0
+                    )
+                )
+
+                if probability >= 0.75:
+
+                    st.error(
+                        "Risk Level: HIGH"
+                    )
+
+                elif probability >= 0.40:
+
+                    st.warning(
+                        "Risk Level: MEDIUM"
+                    )
+
+                else:
+
+                    st.success(
+                        "Risk Level: LOW"
+                    )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Prediction could not be completed."
+                )
+
+                st.exception(e)
+
 
 # ============================================================
 # MODEL PERFORMANCE
@@ -780,71 +1156,78 @@ elif page == "🔮 Fraud Prediction":
 
 elif page == "🤖 Model Performance":
 
-    st.markdown(
-        """
-        <div class="page-header">
-            <div class="eyebrow">MACHINE LEARNING ENGINE</div>
-            <h1>Model Performance</h1>
-            <p>Evaluation metrics and model insights.</p>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.title("🤖 Model Performance")
+
+    st.write(
+        "Evaluation metrics and machine learning insights."
     )
+
+    st.divider()
+
+    # ========================================================
+    # METRICS
+    # ========================================================
 
     c1, c2, c3, c4 = st.columns(4)
 
-    performance = [
-        ("🎯", "Accuracy", "99.83%"),
-        ("🔎", "Precision", "95.00%"),
-        ("📡", "Recall", "58.00%"),
-        ("🏆", "ROC-AUC", "96.95%")
-    ]
+    with c1:
 
-    for col, (icon, title, value) in zip(
-        [c1, c2, c3, c4],
-        performance
-    ):
+        st.metric(
+            "🎯 Accuracy",
+            "99.83%"
+        )
 
-        with col:
+    with c2:
 
-            st.markdown(
-                f"""
-                <div class="metric-card">
-                    <div class="metric-icon">{icon}</div>
-                    <div class="metric-title">{title}</div>
-                    <div class="metric-value">{value}</div>
-                    <div class="metric-sub">Random Forest</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        st.metric(
+            "🔎 Precision",
+            "95.00%"
+        )
 
-    st.markdown("---")
+    with c3:
+
+        st.metric(
+            "📡 Recall",
+            "58.00%"
+        )
+
+    with c4:
+
+        st.metric(
+            "🏆 ROC-AUC",
+            "96.95%"
+        )
+
+    st.divider()
 
     # ========================================================
     # CLASSIFICATION REPORT
     # ========================================================
 
-    st.markdown("### 📋 Classification Report")
+    st.subheader(
+        "📋 Classification Report"
+    )
 
-    report = pd.DataFrame({
-        "Class": [
-            "Legitimate",
-            "Fraud"
-        ],
-        "Precision": [
-            "1.00",
-            "0.95"
-        ],
-        "Recall": [
-            "1.00",
-            "0.58"
-        ],
-        "F1-Score": [
-            "1.00",
-            "0.72"
-        ]
-    })
+    report = pd.DataFrame(
+        {
+            "Class": [
+                "Legitimate",
+                "Fraud"
+            ],
+            "Precision": [
+                1.00,
+                0.95
+            ],
+            "Recall": [
+                1.00,
+                0.58
+            ],
+            "F1-Score": [
+                1.00,
+                0.72
+            ]
+        }
+    )
 
     st.dataframe(
         report,
@@ -852,52 +1235,88 @@ elif page == "🤖 Model Performance":
         hide_index=True
     )
 
+    st.divider()
+
     # ========================================================
     # CONFUSION MATRIX
     # ========================================================
 
-    st.markdown("### 🔢 Confusion Matrix")
+    st.subheader(
+        "🔢 Confusion Matrix"
+    )
 
-    cm = np.array([
-        [110715, 0],
-        [180, 249]
-    ])
+    cm = np.array(
+        [
+            [110715, 0],
+            [180, 249]
+        ]
+    )
 
     fig = px.imshow(
         cm,
         text_auto=True,
-        x=["Predicted Legitimate", "Predicted Fraud"],
-        y=["Actual Legitimate", "Actual Fraud"],
-        labels=dict(
-            x="Prediction",
-            y="Actual",
-            color="Count"
-        )
+        x=[
+            "Predicted Legitimate",
+            "Predicted Fraud"
+        ],
+        y=[
+            "Actual Legitimate",
+            "Actual Fraud"
+        ],
+        labels={
+            "x": "Prediction",
+            "y": "Actual",
+            "color": "Count"
+        }
     )
 
-    fig.update_layout(height=450)
+    fig.update_layout(
+        height=450
+    )
 
     st.plotly_chart(
         fig,
         use_container_width=True
     )
 
+    st.divider()
+
     # ========================================================
     # FEATURE IMPORTANCE
     # ========================================================
 
-    st.markdown("### 🌲 Feature Importance")
+    st.subheader(
+        "🌲 Feature Importance"
+    )
 
-    if hasattr(model, "feature_importances_"):
+    if (
+        model_loaded
+        and hasattr(
+            model,
+            "feature_importances_"
+        )
+        and hasattr(
+            model,
+            "feature_names_in_"
+        )
+    ):
 
-        importance = pd.DataFrame({
-            "Feature": model.feature_names_in_,
-            "Importance": model.feature_importances_
-        })
+        importance = pd.DataFrame(
+            {
+                "Feature":
+                    model.feature_names_in_,
+
+                "Importance":
+                    model.feature_importances_
+            }
+        )
 
         importance = (
             importance
-            .sort_values("Importance", ascending=False)
+            .sort_values(
+                "Importance",
+                ascending=False
+            )
             .head(15)
         )
 
@@ -920,24 +1339,53 @@ elif page == "🤖 Model Performance":
             use_container_width=True
         )
 
+    else:
+
+        st.info(
+            "Feature importance is unavailable."
+        )
+
+    st.divider()
+
     # ========================================================
-    # MODEL INFO
+    # MODEL INFORMATION
     # ========================================================
 
-    st.markdown(
-        """
-        <div class="model-panel">
-            <div class="big-icon">🌲</div>
-            <div>
-                <h3>Random Forest Classifier</h3>
-                <p>
-                    FraudGuard uses a Random Forest model to identify
-                    potentially fraudulent transactions. Multiple
-                    decision trees work together to improve prediction
-                    reliability and reduce overfitting.
-                </p>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
+    st.subheader(
+        "🌲 Random Forest Classifier"
+    )
+
+    st.write(
+        "FraudGuard AI uses a Random Forest classifier "
+        "to identify potentially fraudulent transactions. "
+        "Multiple decision trees work together to improve "
+        "prediction reliability and reduce overfitting."
+    )
+
+    c1, c2, c3 = st.columns(3)
+
+    with c1:
+
+        st.metric(
+            "Model Type",
+            "Random Forest"
+        )
+
+    with c2:
+
+        st.metric(
+            "ML Engine",
+            "Scikit-Learn"
+        )
+
+    with c3:
+
+        st.metric(
+            "Deployment",
+            "Streamlit"
+        )
+
+    st.info(
+        "ℹ️ fraudTest.csv is not required for "
+        "Fraud Prediction or Model Performance."
     )
