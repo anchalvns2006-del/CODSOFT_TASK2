@@ -1,0 +1,555 @@
+{
+  "metrics": {
+    "total_transactions": 555719,
+    "fraud_count": 2145,
+    "legitimate_count": 553574,
+    "fraud_rate": 0.386,
+    "average_amount": 69.39,
+    "average_fraud_amount": 528.36,
+    "average_legitimate_amount": 67.61
+  },
+  "fraud_by_hour": [
+    {
+      "label": "0",
+      "total": 18153,
+      "fraud": 188,
+      "legitimate": 17965
+    },
+    {
+      "label": "1",
+      "total": 18461,
+      "fraud": 169,
+      "legitimate": 18292
+    },
+    {
+      "label": "2",
+      "total": 18140,
+      "fraud": 168,
+      "legitimate": 17972
+    },
+    {
+      "label": "3",
+      "total": 18199,
+      "fraud": 194,
+      "legitimate": 18005
+    },
+    {
+      "label": "4",
+      "total": 18075,
+      "fraud": 15,
+      "legitimate": 18060
+    },
+    {
+      "label": "5",
+      "total": 17917,
+      "fraud": 20,
+      "legitimate": 17897
+    },
+    {
+      "label": "6",
+      "total": 18106,
+      "fraud": 14,
+      "legitimate": 18092
+    },
+    {
+      "label": "7",
+      "total": 18098,
+      "fraud": 16,
+      "legitimate": 18082
+    },
+    {
+      "label": "8",
+      "total": 17993,
+      "fraud": 10,
+      "legitimate": 17983
+    },
+    {
+      "label": "9",
+      "total": 18046,
+      "fraud": 14,
+      "legitimate": 18032
+    },
+    {
+      "label": "10",
+      "total": 18049,
+      "fraud": 12,
+      "legitimate": 18037
+    },
+    {
+      "label": "11",
+      "total": 18088,
+      "fraud": 17,
+      "legitimate": 18071
+    },
+    {
+      "label": "12",
+      "total": 28037,
+      "fraud": 17,
+      "legitimate": 28020
+    },
+    {
+      "label": "13",
+      "total": 28178,
+      "fraud": 14,
+      "legitimate": 28164
+    },
+    {
+      "label": "14",
+      "total": 28204,
+      "fraud": 14,
+      "legitimate": 28190
+    },
+    {
+      "label": "15",
+      "total": 28048,
+      "fraud": 21,
+      "legitimate": 28027
+    },
+    {
+      "label": "16",
+      "total": 28563,
+      "fraud": 21,
+      "legitimate": 28542
+    },
+    {
+      "label": "17",
+      "total": 28064,
+      "fraud": 16,
+      "legitimate": 28048
+    },
+    {
+      "label": "18",
+      "total": 28001,
+      "fraud": 30,
+      "legitimate": 27971
+    },
+    {
+      "label": "19",
+      "total": 27925,
+      "fraud": 24,
+      "legitimate": 27901
+    },
+    {
+      "label": "20",
+      "total": 27983,
+      "fraud": 36,
+      "legitimate": 27947
+    },
+    {
+      "label": "21",
+      "total": 28205,
+      "fraud": 27,
+      "legitimate": 28178
+    },
+    {
+      "label": "22",
+      "total": 28388,
+      "fraud": 550,
+      "legitimate": 27838
+    },
+    {
+      "label": "23",
+      "total": 28798,
+      "fraud": 538,
+      "legitimate": 28260
+    }
+  ],
+  "fraud_by_amount_range": [
+    {
+      "label": "0-25",
+      "total": 199071,
+      "fraud": 446,
+      "legitimate": 198625
+    },
+    {
+      "label": "25-50",
+      "total": 89859,
+      "fraud": 16,
+      "legitimate": 89843
+    },
+    {
+      "label": "50-100",
+      "total": 166804,
+      "fraud": 18,
+      "legitimate": 166786
+    },
+    {
+      "label": "100-250",
+      "total": 84522,
+      "fraud": 83,
+      "legitimate": 84439
+    },
+    {
+      "label": "250-500",
+      "total": 9385,
+      "fraud": 546,
+      "legitimate": 8839
+    },
+    {
+      "label": "500-1000",
+      "total": 4495,
+      "fraud": 760,
+      "legitimate": 3735
+    },
+    {
+      "label": "1000+",
+      "total": 1583,
+      "fraud": 276,
+      "legitimate": 1307
+    }
+  ],
+  "fraud_by_category": [
+    {
+      "label": "entertainment",
+      "total": 40104,
+      "fraud": 59,
+      "legitimate": 40045
+    },
+    {
+      "label": "food_dining",
+      "total": 39268,
+      "fraud": 54,
+      "legitimate": 39214
+    },
+    {
+      "label": "gas_transport",
+      "total": 56370,
+      "fraud": 154,
+      "legitimate": 56216
+    },
+    {
+      "label": "grocery_net",
+      "total": 19426,
+      "fraud": 41,
+      "legitimate": 19385
+    },
+    {
+      "label": "grocery_pos",
+      "total": 52553,
+      "fraud": 485,
+      "legitimate": 52068
+    },
+    {
+      "label": "health_fitness",
+      "total": 36674,
+      "fraud": 52,
+      "legitimate": 36622
+    },
+    {
+      "label": "home",
+      "total": 52345,
+      "fraud": 67,
+      "legitimate": 52278
+    },
+    {
+      "label": "kids_pets",
+      "total": 48692,
+      "fraud": 65,
+      "legitimate": 48627
+    },
+    {
+      "label": "misc_net",
+      "total": 27367,
+      "fraud": 267,
+      "legitimate": 27100
+    },
+    {
+      "label": "misc_pos",
+      "total": 34574,
+      "fraud": 72,
+      "legitimate": 34502
+    },
+    {
+      "label": "personal_care",
+      "total": 39327,
+      "fraud": 70,
+      "legitimate": 39257
+    },
+    {
+      "label": "shopping_net",
+      "total": 41779,
+      "fraud": 506,
+      "legitimate": 41273
+    },
+    {
+      "label": "shopping_pos",
+      "total": 49791,
+      "fraud": 213,
+      "legitimate": 49578
+    },
+    {
+      "label": "travel",
+      "total": 17449,
+      "fraud": 40,
+      "legitimate": 17409
+    }
+  ],
+  "fraud_by_gender": [
+    {
+      "label": "F",
+      "total": 304886,
+      "fraud": 1164,
+      "legitimate": 303722
+    },
+    {
+      "label": "M",
+      "total": 250833,
+      "fraud": 981,
+      "legitimate": 249852
+    }
+  ],
+  "fraud_by_day": [
+    {
+      "label": "Friday",
+      "total": 62806,
+      "fraud": 297,
+      "legitimate": 62509
+    },
+    {
+      "label": "Monday",
+      "total": 115136,
+      "fraud": 302,
+      "legitimate": 114834
+    },
+    {
+      "label": "Saturday",
+      "total": 62270,
+      "fraud": 266,
+      "legitimate": 62004
+    },
+    {
+      "label": "Sunday",
+      "total": 93098,
+      "fraud": 374,
+      "legitimate": 92724
+    },
+    {
+      "label": "Thursday",
+      "total": 59456,
+      "fraud": 309,
+      "legitimate": 59147
+    },
+    {
+      "label": "Tuesday",
+      "total": 110113,
+      "fraud": 331,
+      "legitimate": 109782
+    },
+    {
+      "label": "Wednesday",
+      "total": 52840,
+      "fraud": 266,
+      "legitimate": 52574
+    }
+  ],
+  "fraud_by_month": [
+    {
+      "label": "6",
+      "total": 30058,
+      "fraud": 133,
+      "legitimate": 29925
+    },
+    {
+      "label": "7",
+      "total": 85848,
+      "fraud": 321,
+      "legitimate": 85527
+    },
+    {
+      "label": "8",
+      "total": 88759,
+      "fraud": 415,
+      "legitimate": 88344
+    },
+    {
+      "label": "9",
+      "total": 69533,
+      "fraud": 340,
+      "legitimate": 69193
+    },
+    {
+      "label": "10",
+      "total": 69348,
+      "fraud": 384,
+      "legitimate": 68964
+    },
+    {
+      "label": "11",
+      "total": 72635,
+      "fraud": 294,
+      "legitimate": 72341
+    },
+    {
+      "label": "12",
+      "total": 139538,
+      "fraud": 258,
+      "legitimate": 139280
+    }
+  ],
+  "fraud_by_weekend": [
+    {
+      "label": "0",
+      "total": 400351,
+      "fraud": 1505,
+      "legitimate": 398846
+    },
+    {
+      "label": "1",
+      "total": 155368,
+      "fraud": 640,
+      "legitimate": 154728
+    }
+  ],
+  "fraud_by_night": [
+    {
+      "label": "0",
+      "total": 389588,
+      "fraud": 303,
+      "legitimate": 389285
+    },
+    {
+      "label": "1",
+      "total": 166131,
+      "fraud": 1842,
+      "legitimate": 164289
+    }
+  ],
+  "amount_histogram": [
+    {
+      "label": "0-10",
+      "legitimate": 144100,
+      "fraud": 150
+    },
+    {
+      "label": "10-25",
+      "legitimate": 54525,
+      "fraud": 296
+    },
+    {
+      "label": "25-50",
+      "legitimate": 89843,
+      "fraud": 16
+    },
+    {
+      "label": "50-100",
+      "legitimate": 166786,
+      "fraud": 18
+    },
+    {
+      "label": "100-250",
+      "legitimate": 84439,
+      "fraud": 83
+    },
+    {
+      "label": "250-500",
+      "legitimate": 8839,
+      "fraud": 546
+    },
+    {
+      "label": "500-1000",
+      "legitimate": 3735,
+      "fraud": 760
+    },
+    {
+      "label": "1000-2500",
+      "legitimate": 1057,
+      "fraud": 276
+    },
+    {
+      "label": "2500-5000",
+      "legitimate": 191,
+      "fraud": 0
+    },
+    {
+      "label": "5000-10000",
+      "legitimate": 47,
+      "fraud": 0
+    },
+    {
+      "label": "10000+",
+      "legitimate": 12,
+      "fraud": 0
+    }
+  ],
+  "correlation": {
+    "amt": {
+      "amt": 1.0,
+      "hour": -0.0299,
+      "city_pop": 0.0028,
+      "distance_km": 0.0008,
+      "is_weekend": 0.0014,
+      "is_night": 0.0275,
+      "is_fraud": 0.1823
+    },
+    "hour": {
+      "amt": -0.0299,
+      "hour": 1.0,
+      "city_pop": 0.0189,
+      "distance_km": 0.0005,
+      "is_weekend": 0.0051,
+      "is_night": -0.3289,
+      "is_fraud": 0.0117
+    },
+    "city_pop": {
+      "amt": 0.0028,
+      "hour": 0.0189,
+      "city_pop": 1.0,
+      "distance_km": 0.0112,
+      "is_weekend": 0.0014,
+      "is_night": -0.0065,
+      "is_fraud": -0.0049
+    },
+    "distance_km": {
+      "amt": 0.0008,
+      "hour": 0.0005,
+      "city_pop": 0.0112,
+      "distance_km": 1.0,
+      "is_weekend": -0.0014,
+      "is_night": 0.0002,
+      "is_fraud": 0.0002
+    },
+    "is_weekend": {
+      "amt": 0.0014,
+      "hour": 0.0051,
+      "city_pop": 0.0014,
+      "distance_km": -0.0014,
+      "is_weekend": 1.0,
+      "is_night": -0.002,
+      "is_fraud": 0.0026
+    },
+    "is_night": {
+      "amt": 0.0275,
+      "hour": -0.3289,
+      "city_pop": -0.0065,
+      "distance_km": 0.0002,
+      "is_weekend": -0.002,
+      "is_night": 1.0,
+      "is_fraud": 0.0761
+    },
+    "is_fraud": {
+      "amt": 0.1823,
+      "hour": 0.0117,
+      "city_pop": -0.0049,
+      "distance_km": 0.0002,
+      "is_weekend": 0.0026,
+      "is_night": 0.0761,
+      "is_fraud": 1.0
+    }
+  },
+  "distance_analysis": [
+    {
+      "is_fraud": 0,
+      "count": 553574,
+      "mean": 76.1,
+      "median": 78.18,
+      "max": 150.92
+    },
+    {
+      "is_fraud": 1,
+      "count": 2145,
+      "mean": 76.21,
+      "median": 78.59,
+      "max": 142.85
+    }
+  ]
+}
